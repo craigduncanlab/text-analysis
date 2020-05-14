@@ -1,11 +1,11 @@
+# Beyond word processing - the encoding of text as spatial information
+
 Craig Duncan
 23.1.2020
 
-# Lessons from word processing - different encoding of spatial information
-
 The attractiveness of word processors for people to use is that they emulate a traditional media, which was already popular because it used visual symbols and the represented relationships for those symbols were already spatial to some degree.  
 
-The reason that information represented visually 'needs' to be converted to anything else is because we don't traditionally have computers interpret the meaning of spatial relations for text as the primary or even first method for identifying spatial regions (or containers) that have meaning.   
+The reason that information represented visually 'needs' to be converted to anything else is because we don't traditionally have computers analyse or interpret the spacial dimensions or qualities of text, not even as the primary or even first method for identifying spatial regions (or containers) that have meaning.   
 
 By omitting the end results of human effort to structure and space text, we never really enable computers to 'speak' in terms of this layout, or structure.  Instead, some meaning is reconstructed by searching, apparently naively, in other ways, using different communication channels.  If humans are, in fact, using multiple channels to represent information (or it is a single channel that can be reconstructed into different components), then by incorporating more of them we can have machines that use the more convenient channel or, alternatively, to confirm or corroborate meaning from one channel by another.
 
