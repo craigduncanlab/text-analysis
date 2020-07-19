@@ -201,25 +201,14 @@ def getParaWithAttributes(paralist):
 		words=0
 		if (mchars>0): # only if there are some characters, test if a split in words
 			words = len(newitem.split(' '))
-		sentences=len(newitem.split('.')) #doesn't care about other punctuation for now
+		sentences=len(newitem.split('.')) # doesn't care about other punctuation for now
 		stats=[newitem,style,words,sentences,index,mchars,molevel,pbreak,sbreak] 
 		result.append(stats)
 		# print(newitem)
 	#print(result)
 	return result
 
-# --- INITIAL AGENT GOAL - LIMITED EXPLORATION
-# Workflow:
-# 1. Read OOXML in as paragraph objects (in an array structure), where each is returned as : text,style,wordcount,index
-# 2. Compress OOXML paras to 'sentences'
-# 3. Prepare rolling ave word density for those  sentences.
-# Different ave calcs are possible.  
-# Output here is array with # item,style,index,density,words,chars outline level
-# 4. Further downstream analyses can be done on this 'rollave' summary
-# 5. Use these stats to differentiate different parts (divisions) of docx documents now...
-# This paves the way for analysis of information by 'type' (clause/definition/schedule)
-# TO DO: also indicate if relevant definitions can be found for sentences?
-
+# open file, obtain OOXML paragraphs, convert to sentences
 def getSentenceList(filepath):
 	myparastats=openfilestyles(filepath) # myparastats = text,style,wordcount,index
 	sentencelist=getSentenceObjects(myparastats)
@@ -231,36 +220,9 @@ def getParaList(filepath):
 	myparastats=openfilestyles(filepath) 
 	return myparastats
 
-# myparastats = text,style,wordcount,index
-def getParaStats(filepath): 
-	myparastats=openfilestyles(filepath) 
-	doParaStats(myparastats)
-	return myparastats
-
-def doParaStats(myparastats):
-	global BodyParas
-	global DefParas
-	printpara(myparastats,1145)
-	printpara(myparastats,1146)
-	printpara(myparastats,1147)
-	printpara(myparastats,1342)
-	printpara(myparastats,1343)
-	printpara(myparastats,1344)
-	#
-	print("-----do lease_analysis3-----")
-	# This lease_analysis3 is specific to trying to find the parts of a lease that include certain keywords.
-	# i.e. to match the parts of the file with clauses.  This is too technical, but it provides proof of concept.
-	# a better way is just to grab the file data, and put it into containers of some sort.
-	lease_analysis3(myparastats)
-	print("----do stylestats2------")
-	# analysis 2 is all about testing the styles applied in Word, and if that is significant
-	#
-	stylestats2(myparastats)
-	return myparastats
-
 def getRollAve(sentencelist):
 	rollave=[]
-	rollave=worddensitycheck(sentencelist)
+	rollave=getRollingWordDensity(sentencelist)
 	return rollave
 
 def doSentenceAnalysis(sentencelist):
@@ -431,16 +393,6 @@ def divisionanalysis(filterlist):
 		convertToMarkdown(y,fname) # each y is a currendiv list of paragraphs.  Performs save?
 		dc=dc+1
 
-# the input argument for this function is the list of paragraphs (NOT sentences)
-# the exploration list is a way of extracting clauses on particular subjects (in this case based on 
-# common 'concepts' in a lease, but can be extended to a set of terms for other 'types' of document)
-def lease_analysis3(myparastats):
-	# TO DO: convert this to CSV, JSON?
-	explorationlist = getLeaseExplorationList()# now go and try and find these topic clauses, extract and save as markdown file
-	exploredata(myparastats,explorationlist)
-	print ("DefParas range:%d,%d" % (DefParas[0],DefParas[1])) 
-	print ("BodyParas range:%d,%d" % (BodyParas[0],BodyParas[1])) # from exploredata
-
 # A second set of tests and navigation functions
 # 1. styleanalysis() provides statistics about the use of styles in the document
 # 2. Paragraph navigation test is based on jumping between headings, which in turn is based
@@ -483,21 +435,8 @@ def stylestats2(myparastats):
 	#getSentenceDensity(myparastats) 
 
 # A rolling word density index (biased forward) with a threshold density
-# range parameters could be learned for best discrimination
-#
-# Why 'rolling'?
-# Smooths out headings, short lines and enables an index value that signals the context of the paragraph
-# i.e. is it in a high word count region or not.
-# The statistic itself (with no other filters) is reasonably effective in distinguishing word count regions
-# We could try and pattern-match on regions, or filter the density index itself by threshold.
-# e.g. we may be able to detect in-document table of contents, forms and schedules (incomplete) because of low word densities
-#
-# graph it to see (see 'dots' functions).  
-# 
-# Learning methods: have a test region (e.g. paras with clauses) and have the threshold change until this is clearly in or out
-# drop threshold down even lower (say 2 to 4) to see title page, execution clause sections etc
 # output: array with # item,style, index,density,words,chars outline level
-def worddensitycheck(myparastats):
+def getRollingWordDensity(myparastats):
 	
 	startwindow=0 #-3,9
 	endwindow=6
@@ -522,26 +461,7 @@ def worddensitycheck(myparastats):
 			pair=[mtext,mstyle,mindex,density,mwords,mchars,molevel,pbreak,sbreak] # item,style, index,density,words,chars outline level
 			rollave.append(pair) # avewords
 			count=count+1
-	#print("---rollme---")
-	#for t in rollave:
-	#	print(rollave)
-	#exit()
 	rolldensitydots(rollave)
-	#
-	#wordcountdots(rollave)
-	#
-	#
-	#
-	#---Choice of outputs...
-	#densitytext(rollave)
-	#lowdensitytext(rollave)
-	#lowrolldensitydots(rollave)
-	
-	#wordcountdots(myparastats)
-	#wordcountbinary(myparastats)
-	#rolldensitydotsbinary(rollave)
-	# TO DO: do binary on wordcount first, then take rolling ave
-	# TO DO: calculate sentences (not just words) density per paragraph as rolling ave, then apply binary filter
 	return rollave
 
 # sentence counts average over several lines to give rolling ave sentence 'rolling' density
@@ -599,16 +519,8 @@ def getSentenceRollAve(myparastats):
 # the range (-3,9) is the effective 'window' over which average is taken for this value
 def getSentenceDensity(myparastats):
 	rollAve=getSentenceRollAve(myparastats)
-	#densitytext(rollave)
-	#lowrolldensitydots(rollave)
 	rolldensitydots(rollave)
-	#wordcountdots(myparastats)
-	#wordcountbinary(myparastats)
-	#rolldensitydotsbinary(rollave)
-	# TO DO: do binary on wordcount first, then take rolling ave
-	# TO DO: calculate sentences (not just words) density per paragraph as rolling ave, then apply binary filter
-
-
+	
 # input: list structure is [mtext,mstyle,mindex,density,wordcount]
 # output: the output is a series of stats, for each line:
 # [list item count/index,(density index) dots to indicate density | [style], [outline level], [pagebreak],[sectionbreak],[textt],[wordcount],[mchars]))
@@ -749,39 +661,30 @@ def ScheduleSearch(myparas,defp,bodyp):
 	for x in range (bodyp[1],len(myparas)):
 		print(myparas[x])
 
-# ---Domain specific legal headings
+# return basic document divisions data, if required
+def getDefParas():
+	return DefParas
 
-# create exploration lists for agent to use: 
-# effectively, this is the 'knowledge base' or 'structure' for a single document type
-# TO DO: expand this to sets for other topics.
-# JSON in future?
-# first item in each list is topic label, rest are terms for identifying heading
-# TO DO: check if guarantee and indemnity are same clause
-def getLeaseExplorationList():
-	datapair1=["definitions","definition","interpretation"] # This is a significant one (global/metadata)
-	explorationlist=[["promotionlevy","promotion","levy"],["GST","goods and services","GST"],datapair1,["outgoings","outgoings"],["rent","rent","rent reviews"],["grant","grant","grant of lease"],["turnoverrent","turnover"],["permitteduse","permitted use","use"],["insurance","insurance","insurances"],["default","default"],["indemnity","indemnity","warranty"],["guarantee","guarantee"],["termination", "termination"],["redevelopment", "redevelopment"],["holdingover", "holding over"],["option","option"],["bankguarantee","bank guarantee"],["securitydeposit","security deposit","security"],["Trust","Trust"],["general","general","provisions"],["assignment","assignment"]]
-	return explorationlist
-
-# --- Legal figures of speech
-# TO DO: use self-referencing language like "In this Deed" or "In this Lease" to help characterise the document
-
+def getBodyParas():
+	return BodyParas
 
 # --- DEFINITIONS EXPLORATION (WALK THROUGH)
-# Pre-req - exploration must have identified definitions section, and captured the blockstart,end (para indexes)
-# NLP on the definitions to check existence, find new locations in the text.
-# main defs section paragraph range should fit within the definitions clause.
+# Function to list all definitions found in block after the definitions heading
+# Requires: Find Definition/Interpreation heading and then the blockstart,end (para indexes) to next heading
+# Each paragraph is checked to see if it satisfies basic test as to whether it is a 'definition'
 
 def getDefsList(myparastats):
-	global DefsParas
+	global DefParas
 	defslist=[] # this will be term, text, parastart, parend,style (for now)
 	stylelist=[]
 	start=getDefsPara(myparastats) # Get the first paragraph for definitions or return -1 if no results
 	dmin=0
 	dmax=0
 	if (start!=-1):
+		# work with all paragraphs from definitions through to next 'heading'
 		paralist= getthisheadingblock(myparastats,start)
-		print("Definitions walk through")
-		print("------------------------")
+		print("List all definitions in def heading block")
+		print("------------------------------------------")
 		defslist=makeDefsIndex(paralist)
 		for item in defslist:
 			index=item[4] #
@@ -794,7 +697,7 @@ def getDefsList(myparastats):
 		print("Max style in use: %s" % defstylemax)
 		return defslist
 	else:
-		print("No Definitions Paras found")
+		print("No Definitions paras found")
 
 # helper function to print the array with the processed definitions
 def printdefarray(item):
@@ -907,51 +810,46 @@ def findLegalDocStart(myparastats):
 		start=start-1 # To ensure the definitions item itself can be found
 	return start 
 
-# The goal is to return the para index reference within the paragraph list
-# that corresponds to the definitions list
-# Searching for a generic heading for definitions will return a first hypothesis
-# For greater accuracy, do not accept first answer unconditionally but
-# Test hypothesis (e.g. walk through definitions and count them - provided you have that function)
-def getDefsPara(myparastats):
-	print("Getting Defs Para...")
-	global defStartPara
+def getDefsStartPara(myparastats,index):
+	print("Getting Defs Start Para...")
 	datapair1=["definitions","definition","interpretation"]
 	topic=datapair1[0] # topic name and file name
 	terms=datapair1[1:]
-	start=jumpGenericHeading(myparastats,0,terms) # junp to a heading with the required data
-	# Apply some rudimentary tests
+	# junp to next heading with keywords definition or interpretation in it
+	start=jumpGenericHeading(myparastats,index,terms) # will index always be zero here?
+	checkstart=checkDefsList(myparastats,start)
+	if (checkstart==-1):
+		checkstart=checkDefsList(myparastats,start+1)
+	return checkstart
+
+def checkDefsList(myparastats,start):
+	global defStartPara
 	paralist= getthisheadingblock(myparastats,start)
 	# print(paralist)
 	defslist=makeDefsIndex(paralist)
-	
 	# print(defslist)
 	if (len(defslist)>0):
 		print("Found a definitions list...")
 		defStartPara = start
 		return start 
 	else:
-		#do another search
-		start=jumpGenericHeading(myparastats,start+1,terms)
-		# Apply some rudimentary tests
-		paralist= getthisheadingblock(myparastats,start)
-		defslist=makeDefsIndex(paralist)
-		if len(defslist)>0:
-			print("Found a definitions list...")
-			defStartPara = start
-			return start 
-		else:
-			print("No definitions list found...")
-			return -1 # is this okay?  Or use error code
+		return -1
 
-# Explore data.  
-# 'explorationlist' is an array that identifies target paragraphs for a particular document type.
-# It is, in substance, a set of 'node labels' from our knowledge structure for document type.
-# This converts the original paragraph text to markdown
-# TO DO: hold it in an in-memory graph structure.
-# TO DO: use general if unknown.
-# Collates any 'heading' style paragraphs as blocks
-# What we want is to identify the main divisions of document i.e. target locations
-# also want to be able to go and retrieve priority legal data structures like definitions when needed.
+# The goal is to return the para index reference within the paragraph list
+# that corresponds to the definitions list
+# Searching for a generic heading for definitions will return a first hypothesis
+# For greater accuracy, do not accept first answer unconditionally but
+# Test hypothesis (e.g. walk through definitions and count them - provided you have that function)
+def getDefsPara(myparastats):
+	start=getDefsStartPara(myparastats,0) 
+	# Apply some rudimentary tests
+	if (start>0):
+		return start
+	else:
+		print("No definitions list found...")
+		return -1 # is this okay?  Or use error code
+
+# Explore data and output in markdown  
 
 def exploredata(myparastats,explorationlist):
 	titlelist=[]
@@ -959,17 +857,19 @@ def exploredata(myparastats,explorationlist):
 	if (initstart<0 or initstart>len(myparastats)):
 		initstart=0
 	for goal in explorationlist:
-		topic=goal[0] # topic name and file name
+		topic=goal[0] # topic name and is used for file name
 		terms=goal[1:]
 		start=jumpGenericHeading(myparastats,initstart,terms)
-		titlelist.append(myparastats[start-1][1]) #add this paragraph style.  Index value is one less
-		blockj=getthisheadingblock(myparastats,start)
-		convertToMarkdown(blockj,topic)
-	# identify a trend in the 'heading style' -what's most common or 90 to 100%?
+		print(terms,start)
+		# only do if match
+		if (start>0):
+			titlelist.append(myparastats[start-1][1]) #add this paragraph with style.  Index value is one less
+			blockj=getthisheadingblock(myparastats,start)
+			convertToMarkdown(blockj,topic)
+	
 	expandbodytitles(myparastats,titlelist)
 
 def expandbodytitles(myparastats,titlelist):
-	global BodyParas
 	print ("ExploreData6")
 	for item in titlelist:
 		style=item
@@ -993,12 +893,13 @@ def expandbodytitles(myparastats,titlelist):
 				if (index>clmax):
 					clmax=index
 				fulltitles.append(nav) # to do - add index to initial data?
-	BodyParas=[clmin,clmax]
-	#print ("BodyParas range:%d,%d" % (BodyParas[0],BodyParas[1]))
 	print(fulltitles)
-
-	# run through the section of document with the topic headings and see if any other headings have been missed?
-
+	setBodyParas(clmin,clmax)
+	
+# set State in case it needs to be queried
+def setBodyParas(clmin,clmax):
+	global BodyParas
+	BodyParas=[clmin,clmax]
 
 # --- AGENT KNOWLEDGE OF DOCUMENT
 
@@ -1056,6 +957,7 @@ def getDictList(myDict):
 
 # -- AGENT KNOWLEDGE ACQUISITION
 
+# A function to grab all paragraphs between two paragraphs identified as 'headings' (no keywords required)
 # returns text, style, para number
 def getthisheadingblock(myparastats,n):
 	outputdata=[]
@@ -1073,7 +975,7 @@ def getthisheadingblock(myparastats,n):
 		#print("Paragraph %d: %s" % (x,myparastats[x-1][0]))
 	return outputdata
 
-# --- AGENT NAVIGATION ----
+# --- DOCX PARA NAVIGATION ----
 
 def jumpnextdefheading(myparastats,n):
 	max = len(myparastats)
@@ -1103,8 +1005,15 @@ def jumpnextGSTheading(myparastats,n):
 			return x
 	return 0
 
-#start=jumpGenericHeading(myparastats,0,topic,terms)
-#This relies on the initial static list of possible headings, not prescribed paras for navigation
+# This functon tries to find the next matching 'heading' up to the maximum paras in myparastats
+# Inputs:
+# list of paragraphs from OOXML
+# 'n' term is the starting paragraph index of the heading term.
+# the List is a list of key words (e.g. 'interpretation', 'GST' etc .  
+# The first term of the list is the 'topic', but the remainder are keywords/synonyms
+# Even if keywords are found, the 'testheading' criteria must also be satisfied.
+#
+# The output returned is the paragraph index in the paragraph list.
 def jumpGenericHeading(myparastats,n,myList):
 	print("Getting next Generic heading: %s" % myList[0])
 	max = len(myparastats)
@@ -1117,6 +1026,7 @@ def jumpGenericHeading(myparastats,n,myList):
 
 # one of functions to navigate around docx by heading (after adopting a 'heading' category etc)
 # jump to the next paragraph that matches a 'heading' test, or no change
+# Similar to jump to generic heading, but this doesn't care to look for keywords
 def jumpnextheading(myparastats,n):
 	#print("A jump to next heading (could be temp)")
 	max = len(myparastats)
@@ -1338,8 +1248,6 @@ def convertToMarkdown(myparas,filename):
 	textfile=codecs.open(filename,"w","utf-8") # utf8 needed for python2 only?
 	textfile.write(output)
 	textfile.close()
-
-
 
 # START HERE
 # nb make any import files also conditional on being main...
