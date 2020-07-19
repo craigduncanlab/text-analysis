@@ -14,13 +14,17 @@ Currently focussed on :
 # Front end scripts:
 
 findphrase.py
+
 definitions.py
+
 stats.py
 
 run as (separately):
 
 python3 findphrase.py filename.docx "search phrase"
+
 python3 definitions.py filename.docx
+
 python3 stats.py filename.docx 
 
 # Workflow:
