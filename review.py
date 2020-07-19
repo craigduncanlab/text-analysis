@@ -670,7 +670,7 @@ def getBodyParas():
 
 # --- DEFINITIONS EXPLORATION (WALK THROUGH)
 # Function to list all definitions found in block after the definitions heading
-# Requires: Find Definition/Interpreation heading and then the blockstart,end (para indexes) to next heading
+# Requires: Find Definition/Interpretation heading and then the blockstart,end (para indexes) to next heading
 # Each paragraph is checked to see if it satisfies basic test as to whether it is a 'definition'
 
 def getDefsList(myparastats):

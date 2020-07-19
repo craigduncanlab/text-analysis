@@ -11,9 +11,17 @@ Currently focussed on :
  - providing a set of front-end scripts that will leverage review.py and xmlutil.py
  - statistical analysis to assist with above.
 
-Front end scripts:
+# Front end scripts:
+
 findphrase.py
 definitions.py
+stats.py
+
+run as (separately):
+
+python3 findphrase.py filename.docx "search phrase"
+python3 definitions.py filename.docx
+python3 stats.py filename.docx 
 
 # Workflow:
 
