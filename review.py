@@ -436,6 +436,7 @@ def headingsToMarkdown(myparastats):
 	# convertToMarkdown will write data to file as well as convert to Markdown.
 	convertToMarkdown(result,"demo3") # Only writes headings to docx at this stage
 
+# the markdown format is legal markdown by Craig Duncan
 def docxToMarkdown(filename):
 	filepath=filename+".docx"
 	myparastats=openfilestyles(filepath)
@@ -867,24 +868,28 @@ def getDefsPara(myparastats):
 # each found heading paragraph is supplemented by the block of text, then saved in a markdown file.
 # finally, the division of the document containing these headings is defined by the start,end paras.
 
-def exploredata(myparastats,explorationlist):
+def matchtitle(myparastats,goal):
 	titlelist=[]
 	initstart=findLegalDocStart(myparastats)
 	if (initstart<0 or initstart>len(myparastats)):
 		initstart=0
-	for goal in explorationlist:
-		topic=goal[0] # topic name and is used for file name
-		terms=goal[1:] # the list of search terms to find in the heading
-		# this goes directly to the relevant heading text list, not in a sequence
-		start=jumpGenericHeading(myparastats,initstart,terms)
-		print(terms,start)
-		# only do if match - save a file with the paragraphs that follow this heading.
-		if (start>0):
-			titlelist.append(myparastats[start-1][1]) #add this paragraph text to titlelist  Index value is one less
-			blockj=getthisheadingblock(myparastats,start)
-			convertToMarkdown(blockj,topic)
-	
-	expandbodytitles(myparastats,titlelist)
+	#print(explorationlist)
+	#print(len(explorationlist))
+	#exit()
+	#for goal in explorationlist:
+	topic=goal[0] # topic name and is used for file name
+	terms=goal[1:] # the list of search terms to find in the heading
+	# this goes directly to the relevant heading text list, not in a sequence
+	print(terms)
+	start=jumpGenericHeading(myparastats,initstart,terms)
+	print(terms,start)
+	# only do if match - save a file with the paragraphs that follow this heading.
+	if (start>0):
+		titlelist.append(myparastats[start-1][1]) #add this paragraph text to titlelist  Index value is one less
+		blockj=getthisheadingblock(myparastats,start)
+		output=convertToMarkdown(blockj,topic)
+		print(output)
+	# expandbodytitles(myparastats,titlelist)
 
 # takes as an input, a paragraph list and a list of heading styles (probably H1)?
 # identifies the most common word heading style in use, then 
@@ -1271,8 +1276,8 @@ def convertToMarkdown(myparas,filename):
 		if (i=="Heading7"):
 			style="#Indent1"
 		text=item[0]
-		print(text)
-		print(style)
+		#print(text)
+		#print(style)
 		pair = text+style
 		output=output+pair+EOLC
 		#print(output)
@@ -1280,6 +1285,7 @@ def convertToMarkdown(myparas,filename):
 	textfile=codecs.open(filename,"w","utf-8") # utf8 needed for python2 only?
 	textfile.write(output)
 	textfile.close()
+	return output
 
 # START HERE
 # nb make any import files also conditional on being main...
