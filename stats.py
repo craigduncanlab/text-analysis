@@ -6,19 +6,24 @@ import review # this uses xmlutil as well
 # runs review.py with the chosen docx (legal) document
 # 
 def main(nbname):
-    print("Review file name is "+nbname)
-    plist=review.getParaList(nbname)
+    filename=nbname+".docx"
+    print("Review file name is "+filename)
+    plist=review.getParaList(filename)
     # dlist=review.getDefsList(plist)
     #review.doParaStats(getParaList)
     # This lease_analysis3 is specific to trying to find the parts of a lease that include certain keywords.
     # i.e. to match the parts of the file with clauses.  This is too technical, but it provides proof of concept.
     # a better way is just to grab the file data, and put it into containers of some sort.
+    print("-----convert docx to legal md-----")
+    review.docxToMarkdown(nbname)
+
     print("-----do lease_analysis3-----")
     lease_analysis3(plist)
     # analysis 2 is all about testing the styles applied in Word, and if that is significant
     print("----do stylestats2------")
     review.stylestats2(plist)
-    print("Finished")
+    print("Finished stats")
+    review.navigationTest(plist)
 
 # the input argument for this function is the list of paragraphs (NOT sentences)
 # the exploration list is a way of extracting clauses on particular subjects (in this case based on 
@@ -62,7 +67,7 @@ if (args==2 and __name__ == '__main__'):
         #
         nameonly,suffix=nbname.split('.')
         if (suffix=="docx"):
-            main(nbname)
+            main(nameonly)
         else:
             print("This program requires .docx filename and search word i.e. python3 definitions.py myfile.docx")
     else:

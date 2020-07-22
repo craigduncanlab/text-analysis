@@ -402,37 +402,48 @@ def divisionanalysis(filterlist):
 def stylestats2(myparastats):
 	print("! Style analysis:")
 	styleanalysis(myparastats)
-	#
+	
+def navigationTest(myparastats):
 	print("Testing paragraph navigation:")
 	start=0
 	# better than range because range uses an immutable list
 	#iterative
 	while(start<len(myparastats)):
-		start=jumpnextheading(myparastats,start)
+		start=nh(myparastats,start)
 		#print("n: %d x: %d" % (n,x))
 	#
 	start=len(myparastats)
 	while(start>0):
-		start=jumpprevheading(myparastats,start)
+		start=ph(myparastats,start)
 	start=18 #why?  This must be an integer, not float
-	start=jumpnextpara(myparastats,start)
-	start=jumpnextpara(myparastats,start)
-	start=jumpnextpara(myparastats,start)
-	start=jumpnextpara(myparastats,start)
-	start=jumpnextpara(myparastats,start)
-	start=jumpprevpara(myparastats,start)
-	start=jumpprevpara(myparastats,start)
-	start=jumpnextheading(myparastats,start)
+	for i in range(0,4):
+		start=np(myparastats,start)
+		printPara(start,myparastats)
+	for i in range(0,2):
+		start=pp(myparastats,start)
+		printPara(start,myparastats)
+	start=nh(myparastats,start)
+	printPara(start,myparastats)
 
-	result = getheadingsstyle(myparastats) # subset of all paras that pass the heading test
-	# convertToMarkdown will write data to file as well as convert to Markdown.
-	convertToMarkdown(result,"demo3") # Only writes headings to docx at this stage
-	convertToMarkdown(myparastats,"demo4") #the whole document as markdown
 	#
 	# NB: if DefParas[0]>BodyParas[0] it's because first recognised 'definition' is after clause title
 	#ScheduleSearch(myparastats,DefParas,BodyParas)
 	# TO DO: confine to outside the body paras etc
 	#getSentenceDensity(myparastats) 
+
+def headingsToMarkdown(myparastats):
+	result = getheadingsstyle(myparastats) # subset of all paras that pass the heading test
+	# convertToMarkdown will write data to file as well as convert to Markdown.
+	convertToMarkdown(result,"demo3") # Only writes headings to docx at this stage
+
+def docxToMarkdown(filename):
+	filepath=filename+".docx"
+	myparastats=openfilestyles(filepath)
+	parasToMarkdown(myparastats,filename)
+
+# convert paras to markdown
+def parasToMarkdown(myparastats,filename):
+	convertToMarkdown(myparastats,filename) #the whole document as markdown
 
 # A rolling word density index (biased forward) with a threshold density
 # output: array with # item,style, index,density,words,chars outline level
@@ -850,6 +861,11 @@ def getDefsPara(myparastats):
 		return -1 # is this okay?  Or use error code
 
 # Explore data and output in markdown  
+# input : an exploration list with a 'topic' and then the search term(s)
+# the topic is itself included too?
+# if the topic is found, then the text for the relevant paragraph is added to the title list.
+# each found heading paragraph is supplemented by the block of text, then saved in a markdown file.
+# finally, the division of the document containing these headings is defined by the start,end paras.
 
 def exploredata(myparastats,explorationlist):
 	titlelist=[]
@@ -858,24 +874,34 @@ def exploredata(myparastats,explorationlist):
 		initstart=0
 	for goal in explorationlist:
 		topic=goal[0] # topic name and is used for file name
-		terms=goal[1:]
+		terms=goal[1:] # the list of search terms to find in the heading
+		# this goes directly to the relevant heading text list, not in a sequence
 		start=jumpGenericHeading(myparastats,initstart,terms)
 		print(terms,start)
-		# only do if match
+		# only do if match - save a file with the paragraphs that follow this heading.
 		if (start>0):
-			titlelist.append(myparastats[start-1][1]) #add this paragraph with style.  Index value is one less
+			titlelist.append(myparastats[start-1][1]) #add this paragraph text to titlelist  Index value is one less
 			blockj=getthisheadingblock(myparastats,start)
 			convertToMarkdown(blockj,topic)
 	
 	expandbodytitles(myparastats,titlelist)
 
+# takes as an input, a paragraph list and a list of heading styles (probably H1)?
+# identifies the most common word heading style in use, then 
+# finds all similar style paragraphs that look like headings
+# it returns the full Word paragraphs, in which each heading is contained, as a list of the array items.
+# also, updates the minimum and maximum 'Body Paras' for this document.
+	
 def expandbodytitles(myparastats,titlelist):
-	print ("ExploreData6")
+	print ("Explore Heading Data")
 	for item in titlelist:
 		style=item
 		print("Style: %s" % style)
-	h1stylemax=max(titlelist,key=titlelist.count)
-	print("H1 style in use: %s" % h1stylemax)
+	stylemax=max(titlelist,key=titlelist.count)
+	print("H1 style in use: %s" % stylemax)
+	printTitleList(myparastats,stylemax)
+
+def printTitleList(myparastats,stylemax):
 	# myparastats = text,style,wordcount
 	fulltitles=[]
 	clmin=0
@@ -885,7 +911,7 @@ def expandbodytitles(myparastats,titlelist):
 		text=nav[0]
 		#words=nav[2]
 		index=nav[4]
-		if (style==h1stylemax):
+		if (style==stylemax):
 			if(testheading(text)==True):  #passes basic grammatical tests too
 				# print(nav)
 				if (clmin==0):
@@ -893,8 +919,10 @@ def expandbodytitles(myparastats,titlelist):
 				if (index>clmax):
 					clmax=index
 				fulltitles.append(nav) # to do - add index to initial data?
+	print("These are the headings found:")
 	print(fulltitles)
 	setBodyParas(clmin,clmax)
+	return fulltitles
 	
 # set State in case it needs to be queried
 def setBodyParas(clmin,clmax):
@@ -961,11 +989,11 @@ def getDictList(myDict):
 # returns text, style, para number
 def getthisheadingblock(myparastats,n):
 	outputdata=[]
-	nextheading=jumpnextheading(myparastats,n)
+	nextheading=nh(myparastats,n)
 	x=n-1
 	print("Getting heading block:")
 	while(x<nextheading-1):
-		x=jumpnextpara(myparastats,x)
+		x=np(myparastats,x)
 		text=myparastats[x-1][0]
 		style=myparastats[x-1][1]
 		words=myparastats[x-1][2] # words
@@ -974,6 +1002,9 @@ def getthisheadingblock(myparastats,n):
 		outputdata.append(pair)
 		#print("Paragraph %d: %s" % (x,myparastats[x-1][0]))
 	return outputdata
+
+def printPara(x,myparastats):
+	print("Paragraph %d: %s" % (x,myparastats[x-1][0]))
 
 # --- DOCX PARA NAVIGATION ----
 
@@ -1005,12 +1036,13 @@ def jumpnextGSTheading(myparastats,n):
 			return x
 	return 0
 
-# This functon tries to find the next matching 'heading' up to the maximum paras in myparastats
+# This function tries to find the next matching 'heading' up to the maximum paras in myparastats
 # Inputs:
 # list of paragraphs from OOXML
 # 'n' term is the starting paragraph index of the heading term.
 # the List is a list of key words (e.g. 'interpretation', 'GST' etc .  
 # The first term of the list is the 'topic', but the remainder are keywords/synonyms
+# Any hit for the search terms will produce a 'true result' for a Word paragraph (in any style)
 # Even if keywords are found, the 'testheading' criteria must also be satisfied.
 #
 # The output returned is the paragraph index in the paragraph list.
@@ -1027,7 +1059,7 @@ def jumpGenericHeading(myparastats,n,myList):
 # one of functions to navigate around docx by heading (after adopting a 'heading' category etc)
 # jump to the next paragraph that matches a 'heading' test, or no change
 # Similar to jump to generic heading, but this doesn't care to look for keywords
-def jumpnextheading(myparastats,n):
+def nh(myparastats,n):
 	#print("A jump to next heading (could be temp)")
 	max = len(myparastats)
 	for x in range (n+1,max):
@@ -1037,21 +1069,21 @@ def jumpnextheading(myparastats,n):
 			return x
 	return max
 
-def jumpnextpara(myparastats,n):
+def np(myparastats,n):
 	max = len(myparastats)
 	if n<max:
 		x=n+1
 		# print("Paragraph %d: %s (%s)" % (x,myparastats[x-1][0],myparastats[x-1][1]))
 		return x
 
-def jumpprevpara(myparastats,n):
+def pp(myparastats,n):
 	max = len(myparastats)
 	if n>0:
 		x=n-1
 		# print("Paragraph %d: %s" % (x,myparastats[x-1][0]))
 		return x
 
-def jumpprevheading(myparastats,n):
+def ph(myparastats,n):
 	max = len(myparastats)
 	for x in range(n-1,0,-1): # third parameter needed to reverse
 		text = myparastats[x-1][0]
@@ -1181,7 +1213,7 @@ def getFollowerStats(myparas,styleheading):
 	return fcounts
 	
 
-#checks for criteria of headings - line length, grammatical ending, excluded words
+# checks for criteria of headings - line length, grammatical ending, excluded words
 # in general, we look for short lines, without punctuation
 # TO DO: first find the parts of document that should contain headings (clause section)
 def testheading(item):
