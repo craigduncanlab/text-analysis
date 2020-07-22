@@ -868,6 +868,8 @@ def getDefsPara(myparastats):
 # each found heading paragraph is supplemented by the block of text, then saved in a markdown file.
 # finally, the division of the document containing these headings is defined by the start,end paras.
 
+
+# this is single entry - not a loop per se
 def matchtitle(myparastats,goal):
 	titlelist=[]
 	initstart=findLegalDocStart(myparastats)
@@ -889,7 +891,11 @@ def matchtitle(myparastats,goal):
 		blockj=getthisheadingblock(myparastats,start)
 		output=convertToMarkdown(blockj,topic)
 		print(output)
+		return titlelist
+	else:
+		return -1
 	# expandbodytitles(myparastats,titlelist)
+
 
 # takes as an input, a paragraph list and a list of heading styles (probably H1)?
 # identifies the most common word heading style in use, then 
@@ -937,22 +943,6 @@ def setBodyParas(clmin,clmax):
 # --- AGENT KNOWLEDGE OF DOCUMENT
 
 # simple AI to detect headings in a docx (legal) document
-def getheadings(filepath):
-	myparas=openfile(filepath)
-	print(myparas)
-	paralist=[]
-	for item in myparas:
-		check=testheading()
-		if (check==True):
-			count=0
-			for word in words:
-				if(len(word)>0 and word[0].isupper()):  
-					count=count+1
-					print(item)
-					paralist.append(item)
-	return paralist
-
-# simple AI to detect headings in a docx (legal) document
 # returns the style in use, but at this stage doesn't use that in the analysis
 # TO DO (optional): after this has been done, see if the name of Style etc influences decision
 # Alternatively, use main heading style as default marker of where text divisions occur.
@@ -995,8 +985,10 @@ def getDictList(myDict):
 def getthisheadingblock(myparastats,n):
 	outputdata=[]
 	nextheading=nh(myparastats,n)
+	text=myparastats[n][0]
 	x=n-1
-	print("Getting heading block:")
+	print("Getting heading block n: %d" % n)
+	print("Next heading: %d" % nextheading)
 	while(x<nextheading-1):
 		x=np(myparastats,x)
 		text=myparastats[x-1][0]
@@ -1245,6 +1237,40 @@ def testheading(item):
 def getwordcount(onepara):	
  	words=len(onepara.split(' '))
  	return words
+
+# function to convert docx text block to legal markdown
+def simpleLMD(myparas):
+	EOLC="\r\n"
+	output=""
+	style=""
+	filename="default"
+	#if not already a 'new' document we can add a filename
+	#if (myparas[0][:3]!="-n-"):
+		#pair="-n-"+filename+EOLC
+		#output=output+pair+EOLC
+	for item in myparas:
+		style="#Indent1" # default
+		i=item[1]
+		if (i=="Heading1"):  # number one ranked heading style
+			style="#H1"
+		if (i=="Heading2"):
+			style="#H2"
+		if (i=="Heading3"):
+			style="#H3"
+		if (i=="Heading4"):
+			style="#H4"
+		if (i=="Heading5"):
+			style="#H5"
+		if (i=="Heading6"):
+			style="#H6"
+		if (i=="Heading7"):
+			style="#Indent1"
+		text=item[0]
+		#print(text)
+		#print(style)
+		pair = text+style
+		output=output+pair+EOLC
+	return output
 
 # Currently only workds with docx paragraphs that have explicit "Heading1" style scheme
 # Most suited to legal docs that use structured heading levels
