@@ -10,7 +10,8 @@ For enquiries about the use of this material or for presentations contact softwa
 
 The process of drafting legal documents probably only matters to those who are in the business of making legal documents, and want to think about them intelligently. Some large firms have dedicated precedent lawyer roles. The senior lawyers who then want to prepare documents for clients will use these templates, but with the intention, in many cases, of delegating the drafting work to more junior lawyers. They want to use the templates so that they don’t have to explain everything in detail, and any variations will be minimal. Even with a degree of independence given to the junior lawyer, instructions might be simplified to something like this:
 
-Here’s a template, copy the structure and make what amendments you think you need. Check your clauses match the clause library, and make sure you’ve got all the definitions that are needed.
+> Here’s a template, copy the structure and make what amendments you think you need. Check your clauses match the clause library, and make sure you’ve got all the definitions that are needed.
+
 Templates might be written with preparation or use notes, but often not on the assumption that you want to take a higher-level, more generic approach to contractural drafting.
 
 Most law schools do not spend a great deal of time on practical instructions like drafting contracts and they know that the precedent books and law office templates exist anyway. They focus on the meta-data that exists as contract law – the rules that tell you what a contract is – its essence, and whether it exists, and for how long. In so doing, they tend not to focus on the recipes (algorithms) needed to do any drafting.
