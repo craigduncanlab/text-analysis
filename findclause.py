@@ -1,10 +1,13 @@
 import sys
 import review # this uses xmlutil as well
 # findclause - docx legal clause finder
+# (c) Craig Duncan 2020
+# 
 # a utility function that works with the review.py
 # inputs: 
 # it requires generation of 'sentence list' from the docx document using review.py
 # 'request' is the search phrase
+
 def finder(paralist,request):
 	count=0
 	notcount=0
@@ -34,39 +37,23 @@ def findClauses(myparastats,request):
     	review.matchtitle(myparastats,mylist)
     #review.exploredata(myparastats,explorationlist) # includes output to markdown files
 
-def findall(plist):
-	print("+++")
+def findallheadingsblock(plist):
 	titlelist=[]
-	explorationlist = review.getheadingsstyle(plist)# now go and try and find these topic clauses, extract and save as markdown file
-	items=["default","default"]
-	print("exploration list: ", explorationlist)
-	for i in explorationlist:
-		start=i[4] # this holds the generic paragraph number.  This may not be the doc 'start' if it's before 'definitions etc'
-		preptitle=plist[start][0]
-		blockj=review.getthisheadingblock(plist,start+1) # add one to move forward
-		print(preptitle) # simple heading
-		mytitle=blockj[0][0]
-		titlelist.append(mytitle)
-		markdown=review.simpleLMD(blockj)
-		print(markdown)  # print simple block text
-	print(titlelist)
-	# use this to prepare a better titlelist
-	newlist=[]
-	for i in titlelist:
-		if excludedHeading(i)==False:
-			newlist.append(i)
-	print("Filtered heading list:")
-	print("----------------------")
-	print(newlist)
-
-# remove unwanted headings
-# To do: interpret with reference to order, structure of document
-def excludedHeading(test):
-	exclusions=["This Deed","As trustee for","lease of","deed of","It is agreed","schedule","commercial terms","managing agent"]
-	for t in exclusions:
-		if t.lower() in test.lower():
-			return True
-	return False
+	for i in plist:
+		rank=i[-1:][0]
+		if (rank>0.8): # threshold for headings
+			start=i[4] # this holds the generic paragraph number.  This may not be the doc 'start' if it's before 'definitions etc'
+			title=i[0]
+			blockj=review.getthisheadingblock(plist,start+1)
+			mytitle=blockj[0][0]
+			mypair=[mytitle,rank]
+			titlelist.append(mypair)
+			markdown=review.simpleLMD(blockj)
+			print(markdown)  # print simple block text
+	for t in titlelist:
+		# threshold for a heading
+		if t[1]>=0.8:
+			print(t[0],t[1]) 
 
 def checkStatus():
     dp=review.getDefParas()
@@ -102,16 +89,9 @@ if (args==3 and __name__ == '__main__'):
 				finder(plist,request)
 			else:
 				print("finding all...")
-				findall(plist)
+				findallheadingsblock(plist)
 		else:
 			print("This program requires .docx filename and search word i.e. python3 findphrase.py myfile.docx GST")
 			print("Case sensitive.  Include phrases in quotes.  Use ? to findall")
 	else:
 		doError()
-
-# request="The Lessee must"
-# findphrase(sentencelist,request)
-# # lower case is in middle of sentence
-# request="the Lessee must"
-# findphrase(sentencelist,request)
-# printsentence(sentencelist,531)

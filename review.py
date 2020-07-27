@@ -49,7 +49,7 @@ def makeContiguous(thispara):
 # input args: no help to algos on the style names
 # If necessary, could use styleprefix="Heading" as default for a legal doc
 # output: returns contiguos para text and useful attributes:
-# [item,style,words,sentences,index] 
+# [text,style,words,sentences,index,mchars,molevel,pbreak,sbreak,hdrank] 
 # index is count of paragraph from start of paralist
 # index can be used for navigation later
 def openfilestyles(filepath):
@@ -169,10 +169,6 @@ def getSentenceObjects(myLines):
 							sentence=sentence+text
 							lastline=linecount
 		
-		#sentence=sentence.replace("; and"," and ")
-		#sentence=sentence.replace("; or"," or ")
-		#sentence=sentence.replace(";",",")
-		#sentence=sentence.replace(":"," - ")
 		linecount=linecount+1
 	#output results to console
 	for s in sentencelist:
@@ -184,8 +180,9 @@ def getSentenceObjects(myLines):
 
 # Input: Takes para info (XML text,style,index,olevel,pbreak)
 # makes the para text contiguous
-# adds word, sentence information
-# moves index data to end of each record
+# adds word, sentence information, index data
+# adds a probability score for whether paragraph is a heading
+# these heading marker sores that can be used for navigation later.
 # Output: returns array with these lists: [newitem,style,words,sentences,index,mchars] 
 def getParaWithAttributes(paralist):
 	result=[]
@@ -198,14 +195,14 @@ def getParaWithAttributes(paralist):
 		molevel=item[3]
 		pbreak=item[4]
 		sbreak=item[5]
+		hdrank=testheadingProb(newitem)
 		words=0
 		if (mchars>0): # only if there are some characters, test if a split in words
 			words = len(newitem.split(' '))
 		sentences=len(newitem.split('.')) # doesn't care about other punctuation for now
-		stats=[newitem,style,words,sentences,index,mchars,molevel,pbreak,sbreak] 
+		stats=[newitem,style,words,sentences,index,mchars,molevel,pbreak,sbreak,hdrank] 
 		result.append(stats)
-		# print(newitem)
-	#print(result)
+
 	return result
 
 # open file, obtain OOXML paragraphs, convert to sentences
@@ -943,10 +940,12 @@ def setBodyParas(clmin,clmax):
 # --- AGENT KNOWLEDGE OF DOCUMENT
 
 # simple AI to detect headings in a docx (legal) document
+# myparas input = text,style,wordcount,index
+# output:
 # returns the style in use, but at this stage doesn't use that in the analysis
 # TO DO (optional): after this has been done, see if the name of Style etc influences decision
 # Alternatively, use main heading style as default marker of where text divisions occur.
-# myparas input = text,style,wordcount,index
+
 def getheadingsstyle(myparas):
 	
 	paralist=[]
@@ -970,6 +969,22 @@ def isGenericTitle(myText,myList):
 			return True
 	return False
 
+# uses the list supplied as argument to test if definition topics and associated words are present
+def isStandardTitle(myText):
+	# mylist=["goods and services","GST"]
+	myList=getSearchList()
+	for x in myList:
+		if (myText.lower().find(x.lower())!=-1):  # lowercase test.  Any word in list gives True
+			return 1.0 #True
+	return 0.9 #False
+
+
+def getSearchList():
+    datapair1=["definitions","definition","interpretation"] # This is a significant one (global/metadata)
+    explorationlist=["promotion levy","promotion","levy","GST","goods and services","definitions","definition","interpretation","outgoings","rent","rent reviews","grant","grant of lease","turnover rent","turnover","permitted use","use","insurance","insurances","default","indemnity","warranty","guarantee","termination","redevelopment","holding over","option","bank guarantee","security deposit","security","Trust","general","provisions","assignment"]
+    return explorationlist
+
+
 # simple iteration of a dictionary item returns the key, not value
 def getDictList(myDict):
 	mylist=[]
@@ -985,6 +1000,11 @@ def getDictList(myDict):
 def getthisheadingblock(myparastats,n):
 	outputdata=[]
 	nextheading=nh(myparastats,n)
+	# stop heading if gone past end of index
+	if (n>=len(myparastats)):
+		return
+		#k=len(myparastats)-1
+		#n=k
 	text=myparastats[n][0]
 	x=n-1
 	print("Getting heading block n: %d" % n)
@@ -1048,7 +1068,11 @@ def jumpGenericHeading(myparastats,n,myList):
 	max = len(myparastats)
 	for x in range (n+1,max):
 		text = myparastats[x-1][0]
-		if (isGenericTitle(text,myList)==True and (testheading(text)==True)): # re-processes text.  TO DO. Store heading category
+		rank=myparastats[-1:][0]
+		print(rank)
+		exit()
+		if (isStandardTitle(text)==True and (testheading(text)==True)): # re-processes text.  TO DO. Store heading category
+		#if (isGenericTitle(text,myList)==True and (testheading(text)==True)): # re-processes text.  TO DO. Store heading category
 			# print("Paragraph %d: %s" % (x,text))
 			return x
 	return 0
@@ -1061,9 +1085,11 @@ def nh(myparastats,n):
 	max = len(myparastats)
 	for x in range (n+1,max):
 		text = myparastats[x-1][0]
-		if (testheading(text)==True): # re-processes text.  TO DO. Store heading category
-			#print("Paragraph %d: %s" % (x,myparastats[x-1][0]))
+		# use a probability score now
+		rank=myparastats[x-1][-1:][0] #last entry is heading prob score
+		if (rank>0.8): # heading threshold
 			return x
+	# if nothing, return the last
 	return max
 
 def np(myparastats,n):
@@ -1084,9 +1110,12 @@ def ph(myparastats,n):
 	max = len(myparastats)
 	for x in range(n-1,0,-1): # third parameter needed to reverse
 		text = myparastats[x-1][0]
-		if (testheading(text)==True): # re-processes text.  TO DO. Store heading category
+		rank=myparastats[x-1][-1:][0] #last entry is rank
+		if (rank>0.8):
+		# if (testheading(text)==True): # re-processes text.  TO DO. Store heading category
 			# print("Paragraph %d: %s" % (x,myparastats[x-1][0]))
 			return x
+	# return start if nothing
 	return 0
 
 # --- GENERAL DOCUMENT ANALYSIS
@@ -1209,7 +1238,7 @@ def getFollowerStats(myparas,styleheading):
 			fcounts[stylenext]=fcounts.get(stylenext, 0) + 1
 	return fcounts
 	
-
+# Classifier
 # checks for criteria of headings - line length, grammatical ending, excluded words
 # in general, we look for short lines, without punctuation
 # TO DO: first find the parts of document that should contain headings (clause section)
@@ -1218,21 +1247,100 @@ def testheading(item):
 	words=item.split(' ')
 	last=item[-5:] #last 5 chars
 	nextlast=item[:-2]
-	# eliminate short lines that end with these punctuation marks
-	check1=":"
-	check2=")"
-	check3=";"
-	check4="."
-	check5=","
-	if(len(words)>0 and words[0].isupper() and len(words)<10 and len(last)!=0):
-		firstletter=words[0][0]
-		if (firstletter.isnumeric()==False):
-			if(check1 not in last and check2 not in last and check3 not in last and check4 not in last and check5 not in last): 
-				check6 = "EXECUTED" #case sensitive checks
-				check7="IP" #WP inclusions
-				if (check6 not in item and check7 not in item[0]):
-					result=True
-	return result
+	# short lines 1 to 10 words, and first word is all uppercase?
+	if(len(words)>0 and len(words)<10 and len(last)!=0):
+		result=True
+	else:
+		return False
+	# check first word and letter
+	if (len(words[0])<=0 or words[0].islower()):
+		return False
+	firstletter=words[0][0] 
+	if firstletter.isnumeric()==True or firstletter.islower()==True:
+		return False
+	#Check if heading line is all uppercase (optional?)
+
+	# eliminate any short lines that end with these punctuation marks
+	checkset=[":",")",";",".",","]
+	for i in checkset:
+		if i in last:
+			return False
+	
+	# passes all logical tests so classify as heading
+	# TO DO: use a rating and probability test?
+
+	return True
+
+# input: paragraph text (contiguous)
+# output: weighted probability score for headings classification
+# current threshold is ~ 0.8
+def testheadingProb(item):
+	result=False
+	words=item.split(' ') # splits on spaces, so may be extras
+	# consider if end 'trim' of spaces should be done.
+	genericscore=isStandardTitle(item) 
+	last=item[-5:] #last 5 chars
+	nextlast=item[:-2]
+	# probability
+	rank=1
+	length=0.0
+	lowercase=1
+	punctuation=0
+	rank=rank*(1*len(words))/len(words)
+	# short lines 1 to 10 words, and first word is all uppercase?
+	wl=len(words)
+	# remove empty words in sentence from length parameter qty
+	for t in words:
+		if len(t)==0:
+			wl=wl-1
+	if(wl>0 and wl<10):
+		length=0.9
+	else:
+		length=0.6
+	# check if lowercase
+	for i in words:
+		if i.islower():
+			lowercase=lowercase*0.9
+		if len(i)>0:
+			firstletter=i[0]
+			if firstletter.lower()==True:
+				lowercase=lowercase/0.9
+	#Check if heading line is all uppercase (optional?)
+
+	# reduce parameter for lines with these punctuation items 
+	checkset=[":",")",";",".",","]
+	for i in checkset:
+		if i in last:
+			punctuation=punctuation+1
+	punctuation=1-(punctuation/len(checkset))
+
+	# obtain parameter to decrease score for presence of non-heading
+	# alternatively, use structural context etc
+	excluded=getExcludedProb(item)
+	# print(genericscore,length,lowercase,punctuation,excluded)
+	rank=genericscore*length*punctuation*lowercase*excluded
+
+	return rank
+
+# return probability ranking
+def getExcludedProb(words):
+	print(words)
+	return excludedHeading(words)
+
+
+# remove unwanted headings
+# To do: interpret with reference to order, structure of document
+# nb: this does not exclude manual subheadings (e.g. with Indent style)
+# This would mean that the 'capture' of the block text would be up to that sub-heading, and 
+# then the sub-heading's block would be captured next.
+def excludedHeading(test):
+	probability=1
+	exclusions=["EXECUTED", "IP", "Ltd","Pty Ltd", "By th","This Deed","As trustee for","lease of","deed of","It is agreed","schedule","commercial terms","managing agent"]
+	for t in exclusions:
+		if t.lower() in test.lower():
+			probability=probability*0.7
+	return probability
+
 
 def getwordcount(onepara):	
  	words=len(onepara.split(' '))
