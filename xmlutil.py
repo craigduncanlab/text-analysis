@@ -6,6 +6,7 @@
 # useful ref (but in python 2.7): https://pymotw.com/2/zipfile/
 
 import zipfile # the prefix for all functions.  Part of std python liubrary.
+from zipfile import BadZipfile
 import datetime
 import string # if you want to use string replace
 import re # if you want to use regular expressions to replace in a single pass
@@ -23,13 +24,20 @@ def _getZipInfo(filepath):
     return myzf.infolist()
 
 # public function to return the document.xml content of a given .docx file
+# This can't open a password protected file, so check with 'try'
 def getDocxContent(filepath):
     # part 1 - open .docx document from which clause (text/paragraphs) will be copied 
-    mycontainerzipfile=zipfile.ZipFile(filepath,'r')
-    worddoc='word/document.xml'
-    inputdata = mycontainerzipfile.read(worddoc)
-    worddata = inputdata.decode("utf-8") # convert binary data to a string in a specified text format
-    return worddata
+    # mycontainerzipfile=zipfile.ZipFile(filepath,'r')
+    try:
+        with zipfile.ZipFile(filepath,'r') as zf:
+            # print "zipfile is OK"
+            worddoc='word/document.xml'
+            inputdata = zf.read(worddoc)
+            worddata = inputdata.decode("utf-8") # convert binary data to a string in a specified text format
+            return worddata
+    except BadZipfile:
+        print ("Zipfile. Does not work")
+        return " " # just return a single space?
 
 # public function to return the document.xml content of a given .docx file
 # worddoc='word/document.xml'
@@ -118,7 +126,7 @@ def getTagListInclusive(precstring,opentag,closetag):
     else: 
         return anlist
 
-# check for page break 
+# check for page break if there is one
 # cf <w:pageBreakBefore/> 
 def getPageBreak(thispara):
     starttag="<w:lastRenderedPageBreak" # if page break is last thing 'rendered' on page
@@ -138,7 +146,8 @@ def returnSectionBreak():
     return '<w:sectPr w:rsidR="00ED6065"><w:footerReference w:type="default" r:id="rId10"/><w:pgSz w:w="11906" w:h="16838" w:code="9"/><w:pgMar w:top="1134" w:right="1276" w:bottom="1134" w:left="1276" w:header="720" w:footer="720" w:gutter="0"/><w:pgNumType w:start="1"/><w:cols w:space="720"/><w:noEndnote/></w:sectPr>'
 
 
-#check for a section break (this includes break that starts a new page but isn't tagged by OOXML as a page break)
+#check for a section break in OOXML
+#(this includes break that starts a new page but isn't tagged by OOXML as a page break)
 def getSectionBreak(thispara):
     #section breaks will be included within a single 'para' object/string
     starttag="<w:sectPr"

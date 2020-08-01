@@ -68,6 +68,8 @@ def openfilestyles(filepath):
 # into paragraphs with each semi-colon or colon.
 # TO DO: retain reference to original OOXML start/end paras and include the paras in the new list
 # input: [newitem,style,words,sentences,index,mchars,molevel,pbreak,sbreak] 
+# note: will not return 'blank lines'?  len>0?
+# if you make sentences of len>0 it doesn't catch page breaks?
 def getSentenceObjects(myLines):
 	startwindow=0
 	stop = len(myLines)
@@ -78,6 +80,7 @@ def getSentenceObjects(myLines):
 	firstline=0
 	lastline=0
 	for x in myLines:
+		emptyline=0
 		text=x[0]
 		style=x[1] #choose style of the first line.
 		words=x[2]
@@ -90,6 +93,7 @@ def getSentenceObjects(myLines):
 		last4=text[-4:]
 		last5=text[-5:]
 		isnum=last.isnumeric()
+		
 		# setflag for this 'sentence'
 		if (sbreak==1 and sbreakflag==0):
 			sbreakflag=1
@@ -104,7 +108,7 @@ def getSentenceObjects(myLines):
 			sentences=len(text.split('.'))
 			sentence=sentence+text
 			record=[sentence,style,words,sentences,firstline,mchars,0,pbreak,sbreakflag,lastline]
-			if (len(sentence)>0):
+			if (len(sentence)>=0):
 				sentencelist.append(record)
 				sentence=""
 				sbreakflag=0
@@ -202,14 +206,13 @@ def getParaWithAttributes(paralist):
 		sentences=len(newitem.split('.')) # doesn't care about other punctuation for now
 		stats=[newitem,style,words,sentences,index,mchars,molevel,pbreak,sbreak,hdrank] 
 		result.append(stats)
-
 	return result
 
 # open file, obtain OOXML paragraphs, convert to sentences
 def getSentenceList(filepath):
 	myparastats=openfilestyles(filepath) # myparastats = text,style,wordcount,index
 	sentencelist=getSentenceObjects(myparastats)
-	doSentenceAnalysis(sentencelist)
+	#doSentenceAnalysis(sentencelist)
 	return sentencelist
 
 # myparastats = text,style,wordcount,index
@@ -222,20 +225,6 @@ def getRollAve(sentencelist):
 	rollave=getRollingWordDensity(sentencelist)
 	return rollave
 
-def doSentenceAnalysis(sentencelist):
-	rollave=getRollAve(sentencelist)
-	# test analsis for the 'rlease.docx'
-
-	#---- these are all analysis where we also use rollave
-	print("---====DIVISION ANALYSES===---")
-	print("---Analyse the main divisions in the document---")
-	coverpage_analysis(rollave)
-	body_analysis(rollave,10)
-	title_analysis(rollave)
-	print("----roll those density dots-------")
-	rolldensitydots(rollave)
-	
-
 def printsentence(myList,index):
 	stop=len(myList)
 	if (index<stop):
@@ -246,149 +235,6 @@ def printpara(myList,index):
 	if (index<stop):
 		print("%d:%s" % (index,myList[index]))
 
-# inputs: for measuring paras: about 7
-# for measuring sentences: about 
-def body_analysis(rollave, threshold):
-	print("---BODY ANALYSIS---")
-	print("----Filter doc for high word density---")
-	filterlist=[]
-	for item in rollave:
-		density=item[3]
-		if (density>threshold):
-			filterlist.append(item)
-	divisionanalysis(filterlist)
-
-def title_analysis(rollave):
-	print("---TITLE ANALYSIS---")
-	print("----Filter doc for high word density---")
-	filterlist=[]
-	for item in rollave:
-		density=item[3]
-		if (density<10):
-			filterlist.append(item)
-	print(filterlist) #text,style,index,density
-	#exit()
-	divisionanalysis(filterlist)
-
-# input rollave with # item,style,index,density,words,chars, outline level
-# low density region, with normal style, words less than 8.  capture it for now
-# NB structural analysis is a good filter:
-# this will retrieve isolated, low density sections that we can further subdivide
-def coverpage_analysis(rollave):
-	print("---COVERPAGE ANALYSIS---")
-	print("----Filter doc for high word density---")
-	filterlist=[]
-	for item in rollave:
-		tester=item[0][0:4]
-		#if (tester=="COMM" and item[1]!="TOC1"):
-			#print(item)
-			#exit()
-		#text=item[0]
-		style=item[1]
-		prefix=style[0:3]
-		#index=item[2]
-		density=item[3]
-		words=item[4]
-		#if(style=="TOC1"):
-		#	print(prefix)
-		#	exit()
-		if (density<8 and words<8):
-			# can we rely on title names? or just word count?
-			#if (style=="Normal" or style=="Title" and words<8):
-			if (prefix!="TOC"):
-				filterlist.append(item)
-	print(filterlist) #text,style,index,density
-	#exit()
-	divisionanalysis(filterlist)
-
-def TOC_analysis(rollave):
-	print("---TOC ANALYSIS---")
-	print("----Filter doc for low word density---")
-	filterlist=[]
-	for item in rollave:
-		density=item[3]
-		words=item[4]
-		style=item[1]
-		prefix=style[0:2]
-		if (density<5 and words<12):
-			# can we rely on title names? or just word count?
-			#if (style=="Normal" or style=="Title" and words<8):
-			if (prefix=="TOC"):
-				filterlist.append(item)
-	print(filterlist) #text,style,index,density
-	#exit()
-	divisionanalysis(filterlist)
-
-
-# inputs: rollave is a list of word density, text, paragraph index
-# inputs: filtered
-# [mtext,mstyle,mindex,density,mwords,mchars,molevel,pbreak,sbreak]
-def divisionanalysis(filterlist):
-	divisions=[]
-	gap=10 # I used 5 when checking paragraphs not sentences
-	print("---Checking divisions---")
-	count=0
-	min=0
-	prev=0
-	for p in filterlist:
-		index=p[2]
-		pbreak=p[7]
-		sbreak=p[8]
-		print(index)
-		if (min==0):
-			min=index
-		if (index>0):
-			if (index-prev>gap or sbreak==1): #break on every 'section break'
-				divisions.append(index) # record any breaks in para flow (jumps)
-				prev=index
-			else:
-				prev=index
-	print("---Reporting index numbers of divisions---")
-	print("Number of divisions: %d" % len(divisions))
-	for div in divisions:
-		print (div)
-	divcount=0
-	masterlist=[]
-	currentdiv=[]
-	stopindex=0
-	if len(filterlist)>0:
-		stopindex=filterlist[len(filterlist)-1][2]
-	marker=0
-	#make division lists ready for markup
-	for p in filterlist:
-		index=p[2]
-		if (marker!=stopindex):
-			marker=divisions[divcount]
-		if (index<marker):
-			text=p[0] #[mtext,mstyle,mindex,density]
-			style=p[1]
-			index=p[2]
-			store=[text,style,index] # loses density?
-			currentdiv.append(store)
-			print(store)
-		#print(currentdiv)
-		if (index==marker):
-			print("---division break %d at %d ----" % (divcount,marker))
-			print()
-			print()
-			print(index)
-			if(len(currentdiv)>0):
-				masterlist.append(currentdiv)
-				currentdiv=[]
-			if (divcount<(len(divisions)-1)):
-				divcount=divcount+1 
-			else:
-				marker=stopindex
-		#print(p)
-		#currentdiv.append(p)
-	dc=1
-	for y in masterlist:
-		print("-------div---------")
-		fname="masterlist_div"+str(dc)
-		print(fname)
-		#print(y)
-		convertToMarkdown(y,fname) # each y is a currendiv list of paragraphs.  Performs save?
-		dc=dc+1
 
 # A second set of tests and navigation functions
 # 1. styleanalysis() provides statistics about the use of styles in the document
@@ -444,7 +290,7 @@ def parasToMarkdown(myparastats,filename):
 	convertToMarkdown(myparastats,filename) #the whole document as markdown
 
 # A rolling word density index (biased forward) with a threshold density
-# output: array with # item,style, index,density,words,chars outline level
+# output: array with [text item,style,index (sentences),density,words,chars,outline level,pbreak,sbreak]
 def getRollingWordDensity(myparastats):
 	
 	startwindow=0 #-3,9
@@ -1070,7 +916,6 @@ def jumpGenericHeading(myparastats,n,myList):
 		text = myparastats[x-1][0]
 		rank=myparastats[-1:][0]
 		print(rank)
-		exit()
 		if (isStandardTitle(text)==True and (testheading(text)==True)): # re-processes text.  TO DO. Store heading category
 		#if (isGenericTitle(text,myList)==True and (testheading(text)==True)): # re-processes text.  TO DO. Store heading category
 			# print("Paragraph %d: %s" % (x,text))
@@ -1324,7 +1169,7 @@ def testheadingProb(item):
 
 # return probability ranking
 def getExcludedProb(words):
-	print(words)
+	#print(words)
 	return excludedHeading(words)
 
 
