@@ -17,34 +17,60 @@ global DefParas
 # Functions
 
 def makeContiguous(thispara):
-    # print ("Trying to make this contiguous:")
-    # print(thispara)
-    # make para contiguous text
-    output="" 
-    stop = len(thispara)
-    # print("in makeC, length:"+str(stop))
-    newstart=0
-    starttag="<w:t"
-    starttagend=">" # to allow for insertion of attributes (Word). 
-    endtag="</w:t>"
-    while newstart<=stop:
-        sindex=thispara.find(starttag,newstart,stop) 
-        test=thispara[sindex+len(starttag):sindex+len(starttag)+1]
-        if test==starttagend or test==" ":
-            sindexend=thispara.find(starttagend,sindex,stop) 
-            gap=sindexend-sindex
-            findex=thispara.find(endtag,newstart,stop)
-            # whenever we find end tag we capture internal w:t tags text
-            if (findex!=-1):
-                thistext=thispara[sindex+gap+1:findex]
-                output=output+thistext
-                newstart=findex+len(endtag)
-            else:
-                newstart=newstart+1
-        else:
-            newstart=newstart+1
-    #print("new contig output:"+output)
-    return output
+	# print ("Trying to make this contiguous:")
+	# print(thispara)
+	# make para contiguous text
+	output="" 
+	sindex=0
+	stop = len(thispara)
+	# print("in makeC, length:"+str(stop))
+	log=False
+	if log==True:
+		print(thispara)
+		test="<w:pict>"
+		if test in thispara:
+			print("Picture in paragraph")
+	newstart=0
+	starttag="<w:t"
+	starttagend=">" # to allow for insertion of attributes (Word). 
+	endtag="</w:t>"
+	count=0
+	if log==True:
+		print("Commencing make contig")
+		print("paragraph length")
+		print(len(thispara))
+	maxsize=1500 # put a limit on - if this is a picture could 
+	while newstart<=stop and count<500:
+		count=count+1
+		if log==True:
+			print("%d, %d " % (count,sindex))
+		result=thispara.find(starttag,newstart,stop) 
+		# if cannot find the start index
+		if result!=-1:
+			sindex=result
+		#else:
+			# adjust sindex?
+		test=thispara[sindex+len(starttag):sindex+len(starttag)+1]
+		if test==starttagend or test==" ":
+			sindexend=thispara.find(starttagend,sindex,stop) 
+			gap=sindexend-sindex
+			findex=thispara.find(endtag,newstart,stop)
+			# whenever we find end tag we capture internal w:t tags text
+			if (findex!=-1):
+				thistext=thispara[sindex+gap+1:findex]
+				output=output+thistext
+				newstart=findex+len(endtag)
+			else:
+				if findex==-1:
+					if log==True:
+						print("found finish index")
+						print(newstart,stop)
+					newstart=newstart+1
+		else:
+			newstart=newstart+1
+	if log==True:
+		print("Done. New contig output:"+output)
+	return output
 
 # input args: no help to algos on the style names
 # If necessary, could use styleprefix="Heading" as default for a legal doc
@@ -53,15 +79,25 @@ def makeContiguous(thispara):
 # index is count of paragraph from start of paralist
 # index can be used for navigation later
 def openfilestyles(filepath):
-    #myoutput=xmlutil._getZipInfo(filepath)
-    #print(myoutput)
-    result=[]
-    myfile=xmlutil.getDocxContent(filepath) #finds this in xmlutil
-    # the OpenOffice XML contained in the docx document.xml
-    print("OOXML opened")
-    paralist=xmlutil.getParasInclusiveStyle(myfile) # may need getParasGeneral for .doc or converted .doc
-    result = getParaWithAttributes(paralist) #includes make contiguous function call
-    return result
+	#myoutput=xmlutil._getZipInfo(filepath)
+	#print(myoutput)
+	log=True
+	if log==True:
+		print("attempting to open docx")
+	result=[]
+	myfile=xmlutil.getDocxContent(filepath) #finds this in xmlutil
+	# the OpenOffice XML contained in the docx document.xml
+	if log==True:
+		print("OOXML opened")
+	paralist=xmlutil.getParasInclusiveStyle(myfile) # may need getParasGeneral for .doc or converted .doc
+	if log==True:
+		print("paralist created with length:")
+		print(len(paralist))
+	result = getParaWithAttributes(paralist) #includes make contiguous function call
+	if log==True:
+		print("attributes paralist created with length:")
+		print(len(result))
+	return result
 
 # function to compress paragraphs into sentences where appropriate and use this in place of OOXML
 # That is, a 'sentence' is the grammatical sentence, not the multi-line version that OOXML splits
@@ -149,7 +185,11 @@ def getSentenceObjects(myLines):
 						#
 						mchars=len(sentence)
 						if (mchars>0): # only if there are some characters, test if a split in words
-							words = len(sentence.split(' '))
+							splitter=newitem.split(' ')
+							words = len(splitter)
+							for i in splitter:
+								if len(i)==0 and words>0:
+									words=words-1
 						sentences=len(sentence.split('.'))
 						record=[sentence,style,words,sentences,firstline,mchars,0,pbreak,sbreakflag,lastline]
 						if (len(sentence)>0):
@@ -188,11 +228,17 @@ def getSentenceObjects(myLines):
 # adds a probability score for whether paragraph is a heading
 # these heading marker sores that can be used for navigation later.
 # Output: returns array with these lists: [newitem,style,words,sentences,index,mchars] 
+# nb word count: consecutive spaces without treating as one 'space' inflates word count 
+# so need to compress.
 def getParaWithAttributes(paralist):
+	log=True
 	result=[]
 	for item in paralist:
 		#print(item[0])
 		newitem = makeContiguous(item[0])
+		if log==True:
+			print("Made contiguous paragraph")
+			print(newitem)
 		style=item[1]
 		index=item[2]
 		mchars=len(newitem)
@@ -200,12 +246,30 @@ def getParaWithAttributes(paralist):
 		pbreak=item[4]
 		sbreak=item[5]
 		hdrank=testheadingProb(newitem)
+		if log==True:
+			print("Calculated heading stat")
+			print(hdrank)
 		words=0
 		if (mchars>0): # only if there are some characters, test if a split in words
-			words = len(newitem.split(' '))
+			# remove nulls which represent multiples spaces from word count
+			splitter=newitem.split(' ')
+			words = len(splitter)
+			for i in splitter:
+				if len(i)==0 and words>0:
+					words=words-1
 		sentences=len(newitem.split('.')) # doesn't care about other punctuation for now
 		stats=[newitem,style,words,sentences,index,mchars,molevel,pbreak,sbreak,hdrank] 
 		result.append(stats)
+		if log==True:
+			print("New stats line")
+			print(stats)
+			#print("Next line in file:")
+			#myindex=len(result)
+			#if myindex<len(paralist):
+			#	print(paralist[myindex])
+
+	if log==True:
+		print("Ready to return result")
 	return result
 
 # open file, obtain OOXML paragraphs, convert to sentences

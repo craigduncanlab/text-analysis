@@ -128,12 +128,16 @@ def getTagListInclusive(precstring,opentag,closetag):
 
 # check for page break if there is one
 # cf <w:pageBreakBefore/> 
+# cf <w:br w:type="page"/>. <---This is an older OOXML spec
 def getPageBreak(thispara):
     starttag="<w:lastRenderedPageBreak" # if page break is last thing 'rendered' on page
     endtag="/>"
+    tag2="<w:br w:type="
     result=getTagAttribInclusive(thispara,starttag,endtag)
-    #if (len(result)>0):
-    #    return result
+    if (len(result)>0):
+        return result
+    else:
+        result=getTagAttribInclusive(thispara,tag2,endtag)
     return result
 
 # function to return a page break for converting markdown
@@ -211,6 +215,9 @@ def getTagAttribInclusive(thispara,starttag,endtag):
         if test==starttagend or test==" ":
             if (findex!=-1):
                 thistext=thispara[sindex:findex+len(endtag)]
+                # omit if this is a picture
+                #testpict="<w:pict>"
+                #if testpict not in thistext:
                 output.append(thistext)
                 newstart=findex+len(endtag)
             else:
