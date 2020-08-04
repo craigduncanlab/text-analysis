@@ -78,18 +78,29 @@ def makeContiguous(thispara):
 # [text,style,words,sentences,index,mchars,molevel,pbreak,sbreak,hdrank] 
 # index is count of paragraph from start of paralist
 # index can be used for navigation later
-def openfilestyles(filepath):
+def openfilestyles(filepath,log):
 	#myoutput=xmlutil._getZipInfo(filepath)
 	#print(myoutput)
-	log=True
 	if log==True:
 		print("attempting to open docx")
 	result=[]
-	myfile=xmlutil.getDocxContent(filepath) #finds this in xmlutil
+	try:
+		myfile=xmlutil.getDocxContent(filepath) #finds this in xmlutil
+	except:
+		print("Error opening docx")
+		exit()
+	finally:
+		print("OK opening %s " % filepath)
+
 	# the OpenOffice XML contained in the docx document.xml
 	if log==True:
 		print("OOXML opened")
-	paralist=xmlutil.getParasInclusiveStyle(myfile) # may need getParasGeneral for .doc or converted .doc
+	try:
+		paralist=xmlutil.getParasInclusiveStyle(myfile) # may need getParasGeneral for .doc or converted .doc
+	except:
+		print("Error with paragraph ingestion.")
+		exit()
+
 	if log==True:
 		print("paralist created with length:")
 		print(len(paralist))
@@ -231,7 +242,7 @@ def getSentenceObjects(myLines):
 # nb word count: consecutive spaces without treating as one 'space' inflates word count 
 # so need to compress.
 def getParaWithAttributes(paralist):
-	log=True
+	log=False
 	result=[]
 	for item in paralist:
 		#print(item[0])

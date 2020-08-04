@@ -19,9 +19,13 @@ def setTestWord(thisWord):
 
 # private function to return contents of zipfile 
 def _getZipInfo(filepath):
-    myzf=zipfile.ZipFile(filepath,'r')
-    print (myzf.namelist())
-    return myzf.infolist()
+    try:
+        myzf=zipfile.ZipFile(filepath,'r')
+        print (myzf.namelist())
+        return myzf.infolist()
+    except:
+        print("Error getting zip info")
+        return " "
 
 # public function to return the document.xml content of a given .docx file
 # This can't open a password protected file, so check with 'try'
@@ -35,9 +39,22 @@ def getDocxContent(filepath):
             inputdata = zf.read(worddoc)
             worddata = inputdata.decode("utf-8") # convert binary data to a string in a specified text format
             return worddata
+    except KeyError:
+        print ("No document.xml")
+        print(filepath)
+        return " "
     except BadZipfile:
         print ("Zipfile. Does not work")
         return " " # just return a single space?
+    except FileNotFoundError:
+        print("File Not Found")
+        return " "
+    except IOError:
+        print("IO Error")
+        return " "
+    except:
+        print("Error opening zip file")
+        return " "
 
 # public function to return the document.xml content of a given .docx file
 # worddoc='word/document.xml'
@@ -48,7 +65,17 @@ def extractDocxFile(filepath, filename):
     if filename not in mycontainerzipfile.namelist():
         print (filename+" not in container.  Aborted")
         return -1 
-    inputdata = mycontainerzipfile.read(filename)
+    try:
+        inputdata = mycontainerzipfile.read(filename)
+    except FileNotFoundError:
+        print("File Not Found")
+        return -1
+    except IOError:
+        print("IO Error")
+        return -1
+    except:
+        print("Error reading docx")
+        return -1
     # allow for utf
 
     # can we test for utf8 directly?

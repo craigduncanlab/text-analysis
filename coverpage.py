@@ -5,27 +5,80 @@ import review # this uses xmlutil as well
 # (c) Craig Duncan 2020
 # 
 
-def reportResult(filepath):
-	log=True
-	result=parseCoverPage(filepath,log)
+# input a filepath for docx
+# sort a docx into buckets depending on first page contents
+# if mutually exclusive then returned array can only have one 'True'
+def reportResult(fp,log):
+	#log=False
+	# send back an array with test results (set of obs)
+	isCover=False
+	ismem=False
+	iscrtdoc=False
+	islegal=False
+	plist=[]
+	plist=getFirst50(fp,log)
+	result=parseCoverPage(fp,log)
+	# only check for Memo etc if cover page true
 	if result==True:
-		print("[cover] %s" % filepath)
+		print("[cover] %s" % fp)
+		isCover=True
+		ismem=checkMemo(plist,log)
+		iscrtdoc=checkCourtDoc(plist,False)
+		islegal=checkLegalDoc(plist,False)
+	else:
+		print("Not a cover page")
+	resultlist=[isCover,ismem,iscrtdoc,islegal]
+	return resultlist
+	
+# see if the first page indicates Memorandum
+# Look for title, then check for presence of introductory words (2 or more)
+
+def checkMemo(mainlist,log):
+	subset=[]
+	if len(mainlist)>10:
+		subset=mainlist[0:10] # should work okay with just first 5 lines
+	titles=["memorandum","memo"]
+	wordlist=["date","to","from","subject"]
+	score=0
+	count=0
+	memoTitle=False
+	for i in subset:
+		count=count+1
+		text=i[0]
+		for t in titles:
+			if (t.lower() in text.lower()):
+				memoTitle=True
+	if memoTitle==True:
+		for i in subset:
+			print(i)
+			words=i[0].split(' ')
+			for w in wordlist:
+				# check first two words only
+				stop=len(words)-1
+				if stop>2:
+					stop=2
+				for t in range(0,stop):
+					if w.lower() in words[t].lower():
+						score=score+1
+	#print(score)
+	if score>2:
+		print("This is a Memo")
+		for i in subset:
+			print(i[0])
+		print(score)
+		return True
 	else:
 		if log==True:
-			print("[XXX no cover] %s" % filepath)
-			#text=review.openfilestyles(filepath)
-			myfile=xmlutil.getDocxContent(filepath)
-			paralist=xmlutil.getParasInclusiveStyle(myfile)
-			subset=paralist[0:50]
-			for i in subset: # just first 50 lines
-				print(i)
-
+			print("This is not a Memo")
+		return False
 
 # test if first page is likely to be a document coverpage
 def parseCoverPage(filepath,log):
 	plist=getFirst50(filepath,log) # first 50 lines
 	if log==True:
 		print("plist OK")
+		#print(plist)
+		#exit()
 	subset=firstpage_analysis(plist,log)
 	if subset==-1:
 		if log==True:
@@ -45,7 +98,15 @@ def getFirst50(filepath,log):
 	if log==True:
 		print("Attempting to get first 50 paras:")
 		print(filepath)
-	myparastats=review.openfilestyles(filepath)
+	myparastats=[]
+	myparastats=review.openfilestyles(filepath,log)
+	#try:
+	#	myparastats=review.openfilestyles(filepath)
+	#except:
+	#	print("Error opening file. First 50")
+	#	print (myparastats[1:3])
+	#	exit()
+
 	plist=[]
 	if (len(myparastats)>50):
 		plist=myparastats[0:50]
@@ -84,9 +145,8 @@ def checkLegalDocTitles(plist,log):
 # Depends on what it is looking for to determine if it's likely
 def checkFeaturedWords(plist,testList,log):
 	courtrank=0
-	count=0
+	count=1
 	for i in plist:
-		count=count+1
 		text=i[0]
 		#print(text)
 		#words=text.split(' ')
@@ -97,6 +157,7 @@ def checkFeaturedWords(plist,testList,log):
 			if tx.find(xx)!=-1:
 				# print(x,text)
 				courtrank=courtrank+1
+		count=count+1
 	result=float(courtrank/count*100)
 	if log==True:
 		print("Stats")
@@ -145,16 +206,16 @@ def firstpage_analysis(plist,log):
 		sbreak=item[8]
 		if log==True:
 			print(text)
-		#if(style=="TOC1"):
-		#	print(prefix)
-		# Forced page end: if we find an unusual block of text treat it as end of page
-		#if (len(text)>100):
-		#	blocktext=1
 		if pbreak==1 or sbreak==1 or blocktext==1:
-			pageend=1
-			if breakmax==0:
-				breakmax=index
-				#print(" --- page break found ---")
+			if pbreak==1:
+					print(" --- page break found ---")
+			if sbreak==1:
+				print(" --- section break found ---")
+			# we ignore it if it's in the first line or 2
+			if index>3:
+				pageend=1
+				if breakmax==0:
+					breakmax=index
 			
 		# filter not used
 		if (density<8 and words<8):
@@ -166,9 +227,11 @@ def firstpage_analysis(plist,log):
 		breakmax=len(plist)
 	if log==True:
 		print("page break at index: %d" % breakmax)
-	mainlist=plist[0:breakmax] #:breakmax]
+	mainlist=plist[0:breakmax] 
 	if log==True:
-		print(mainlist)
+		print("Done First Page Analysis")
+		#print(mainlist)
+		#print(breakmax)
 	return mainlist
 
 
@@ -177,6 +240,7 @@ def testcoverpage(mainlist,log):
 	lowcount=0
 	lm=len(mainlist)
 	flagged=False
+	wordCheck=True
 	if lm>0:
 		halfway=float(lm/2) #store top half marker point
 		step=int(0)
@@ -195,28 +259,41 @@ def testcoverpage(mainlist,log):
 			total=int(total)+int(words) # density
 			if words<3:
 				lowcount=lowcount+1 # less than 3 words in line
-			if log==True:
+			if wordCheck==True:
 				print("%d %d %s" % (step,words,text))
 		ave=float(total/lm)
 		halfave=float(halftotal/halfway)
 		percentlow=float(lowcount/lm*100)
-		if (log==True):
+		if log==True:
 			print("Total of word density: %d" % total)
 			print("Ave word density: %f" % ave)
 			print("Ave word density top half: %f" % halfave)
 			print("Low word line pc %f" % percentlow)
-		if total<50 or ave<3 or halfave<3 or percentlow>75:
+		# redundant top half check:
+		tophalf=False
+		# was 50 for general, but make 30 to catch memos
+		if (lm>10 and percentlow>30 and halfave<3):
+			tophalf=True
+		if log==True:
+			print("%d %d %d" % (lm,percentlow,halfave))
+		# check first 10 lines to see if coverpage Memo
+		if (lm>10 and percentlow>30 and halfave<3):
+				tophalf=True
+				# checkMemo(mainlist,log)
+		if total<50 or tophalf==True or ave<3 or percentlow>75:
 			if log==True:
 				print("Coverpage")
 			return True
 		else:
+
 			if flagged==True: 
 				ave=float(total/lm)
 				percentlow=float(lowcount/lm*100)
 				print("False negative:")
 				print(text)
-				exit()
 	return False
+
+
 
 # START HERE
 # nb make any import files also conditional on being main...
@@ -232,7 +309,7 @@ if (args==2 and __name__ == '__main__'):
 		nameonly,suffix=nbname.split('.')
 		if (suffix=="docx"):
 			print("Review file name is "+nbname)
-			reportResult(nbname)
+			reportResult(nbname,True)
 		else:
 			print("This program requires .docx filename and search word i.e. python3 findphrase.py myfile.docx GST")
 			print("Case sensitive.  Include phrases in quotes.  Use ? to findall")
